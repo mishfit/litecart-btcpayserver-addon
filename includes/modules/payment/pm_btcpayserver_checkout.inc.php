@@ -169,7 +169,9 @@
         'Stripe-Version' => '2020-08-27',
       ];
 
-      $response = $client->call($method, 'https://api.stripe.com/v1'.$endpoint, $request, $headers);
+      $url = $this->settings['btcpayserver_url'];
+
+      $response = $client->call($method, $url.$endpoint, $request, $headers);
 
       if (!$result = json_decode($response, true)) {
         throw new Exception('Invalid response from remote machine');
@@ -196,6 +198,13 @@
           'default_value' => 'images/payment/btcpayserver.png',
           'title' => language::translate(__CLASS__.':title_icon', 'Icon'),
           'description' => language::translate(__CLASS__.':description_icon', 'Path to an image to be displayed.'),
+          'function' => 'text()',
+        ],
+        [
+          'key' => 'btcpayserver_url',
+          'default_value' => '',
+          'title' => language::translate(__CLASS__.':title_btcpayserver_url', 'Access Token'),
+          'description' => language::translate(__CLASS__.':description_btcpayserver_url', 'Your BTCPayServer instance URL.'),
           'function' => 'text()',
         ],
         [
