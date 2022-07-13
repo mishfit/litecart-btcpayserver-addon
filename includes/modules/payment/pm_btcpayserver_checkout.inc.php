@@ -1,10 +1,10 @@
 <?php
 
-  class pm_stripe_checkout {
+  class pm_btcpayserver_checkout {
     public $id = __CLASS__;
     public $name = 'BTCPayServer Checkout';
-    public $description = '';
-    public $author = 'Nokware, LLC';
+    public $description = 'Use BTCPayServer to checkout.';
+    public $author = 'Mishael Ochu';
     public $version = '1.0';
     public $website = 'https://btcpayserver.org/';
     public $priority = 0;
@@ -40,27 +40,32 @@
         $order->save(); // Create order ID
 
         $request = [
-          'mode' => 'payment',
-          'locale' => $order->data['language_code'],
-          'client_reference_id' => $order->data['id'],
-          'payment_intent_data' => [
-            'description' => 'Order ' . $order->data['id'],
+          'metadata' => [
+              'orderId' => $order->data['id'],
+              'orderUrl' => document::link(WS_DIR_ADMIN, ['doc' => 'edit_order'], ['app' => 'orders'], ['order_id' => $order->data['id']] ),
+              'buyerName' => $order->data['customer']['firstname'].' '.$order->data['customer']['lastname'],
+              'buyerEmail' => $order->data['customer']['email'],
+              'buyerAddress1' => $order->data['customer']['address1'],
+              'buyerAddress2' => $order->data['customer']['address2'],
+              'buyerPhone' => $order->data['customer']['phone'],
+              'buyerCity' => $order->data['customer']['city'],
+              'buyerState' => $order->data['customer']['zone_code'],
+              'buyerZip' => $order->data['customer']['postcode'],
+              'buyerCountry' => $order->data['customer']['country_code'],
           ],
-          'payment_method_types' => [preg_replace('#^.*:#', '', $order->data['payment_option']['id'])],
-          'line_items' => [],
-          'success_url' => document::ilink('order_process'),
+          'checkout' => [
+              'speedPolicy' => 'HighSpeed',
+              'expirationMinutes' => 90,
+              'redirectAutomatically' => true,
+              'redirectURL' => document::ilink('order_process'),
+          ],
+          'currency' => $order->data['currency_code'],
+          'amount' => $order->data['payment_due'],
           'cancel_url' => document::ilink('checkout'),
         ];
 
-        if ($customer_id = $this->_get_remote_customer_id($order->data['customer']['email'])) {
-          $request['customer'] = $customer_id;
-        } else {
-          $request['customer_email'] = $order->data['customer']['email'];
-        }
-
         foreach ($order->data['items'] as $item) {
-          if ($item['price'] <= 0) continue;
-          $request['line_items'][] = [
+            $request['metadata']['line_items'][] = [
             'images' => [
               document::link(WS_DIR_APP .'images/'. reference::product($item['product_id'])->image),
             ],
@@ -71,36 +76,13 @@
           ];
         }
 
-        foreach ($order->data['order_total'] as $row) {
-          if (empty($row['calculate'])) continue;
-          $request['line_items'][] = [
-            'name' => $row['title'],
-            'quantity' => 1,
-            'amount' => $this->_amount($row['value'] + $row['tax'], $order->data['currency_code'], $order->data['currency_value']),
-            'currency' => $order->data['currency_code'],
-          ];
-        }
+        $result = $this->_call('POST', '/stores/'.$this->settings['store_id'].'/invoices' , $request);
 
-      // TODO: check to see if BTCPayServer needs this Workaround (because Stripe does not support negative values)
-        foreach ($request['line_items'] as $item) {
-          if ($item['amount'] < 0) {
-            $request['line_items'] = [[
-              'name' => 'Order '. $order->data['id'],
-              'quantity' => 1,
-              'amount' => $this->_amount($order->data['payment_due'], $order->data['currency_code'], $order->data['currency_value']),
-              'currency' => $order->data['currency_code'],
-            ]];
-            break;
-          }
-        }
-
-        $result = $this->_call('POST', '/checkout/sessions', $request);
-
-        session::$data['stripe']['payment_intent_id'] = $result['payment_intent'];
+        session::$data['btcpayserver']['id'] = $result['id'];
 
         return [
           'method' => 'GET',
-          'action' => $result['url'],
+          'action' => $result['checkoutLink'],
         ];
 
       } catch (Exception $e) {
@@ -109,36 +91,22 @@
     }
 
     public function verify($order) {
-
       try {
-        if (empty(session::$data['stripe']['payment_intent_id'])) {
-          throw new Exception('Missing payment intent id');
+        if (empty(session::$data['btcpayserver']['id'])) {
+          throw new Exception('Missing invoice id');
         }
-
-        $result = $this->_call('GET', '/payment_intents/'. session::$data['stripe']['payment_intent_id']);
-
-        if ($result['status'] != 'succeeded') {
+        $result = $this->_call('GET', '/stores/'.$this->settings['store_id'].'/invoices/'.session::$data['btcpayserver']['id']);
+        if (empty($result['status'])) {
           throw new Exception('Payment status not succeeded');
         }
-
         return [
-          'order_status_id' => $this->settings['order_status_id'],
-          'transaction_id' => $result['id'],
+          'order_status_id' => $result['status'],
         ];
-
       } catch (Exception $e) {
         return ['error' => $e->getMessage()];
       }
     }
 
-    private function _get_remote_customer_id($email) {
-
-      $result = $this->_call('POST', '/customers?email='. urlencode($email));
-
-      if (!empty($result['data'][0]['id'])) {
-        return $result['data'][0]['id'];
-      }
-    }
 
     private function _amount($amount, $currency_code, $currency_value) {
 
@@ -151,29 +119,30 @@
     }
 
     private function _call($method, $endpoint, $request = null) {
-
       $client = new wrap_http();
 
       $headers = [
-        'Authorization' => 'Bearer '. $this->settings['secret_key'],
-        'X-STRIPE-CLIENT-USER-AGENT' => json_encode([
+        'Authorization' => 'token '. $this->settings['access_token'],
+        'X-BTCPAYSERVER-CLIENT-USER-AGENT' => json_encode([
           'lang' => 'php',
           'publisher' => 'litecart',
           'application' => [
             'url' => 'https://litecart.net/',
             'version' => $this->version,
-            'partner_id' => 'pp_partner_DaR9Lw5TGJwRbK',
-            'name' => 'Stripe Checkout for LiteCart'
+            'name' => 'BTCPay Server for LiteCart'
           ],
         ], JSON_UNESCAPED_SLASHES),
-        'Stripe-Version' => '2020-08-27',
+        'BTCPayServer-Version' => '1.6.0',
+        'Content-Type' => 'application/json',
       ];
 
       $url = $this->settings['btcpayserver_url'];
 
-      $response = $client->call($method, $url.$endpoint, $request, $headers);
+      $response = $client->call($method, $url.$endpoint, $request ? json_encode($request, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : '', $headers);
 
-      if (!$result = json_decode($response, true)) {
+
+      $result = json_decode($response, true);
+      if (empty($request)) {
         throw new Exception('Invalid response from remote machine');
       }
 
@@ -186,6 +155,13 @@
 
     function settings() {
       return [
+        [
+          'key' => 'store_id',
+          'default_value' => 'HvcBKcXXmVu1P22AQaSUtrFptCMfAyXnADTGZLYdasRz',
+          'title' => language::translate(__CLASS__.':title_store_id', 'Store Id'),
+          'description' => language::translate(__CLASS__.':description_store_id', 'BTCPayServer Store ID.'),
+          'function' => 'text()',
+        ],
         [
           'key' => 'status',
           'default_value' => '1',
@@ -203,7 +179,7 @@
         [
           'key' => 'btcpayserver_url',
           'default_value' => '',
-          'title' => language::translate(__CLASS__.':title_btcpayserver_url', 'Access Token'),
+          'title' => language::translate(__CLASS__.':title_btcpayserver_url', 'BTC Pay Server URL'),
           'description' => language::translate(__CLASS__.':description_btcpayserver_url', 'Your BTCPayServer instance URL.'),
           'function' => 'text()',
         ],
