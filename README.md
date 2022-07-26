@@ -22,16 +22,8 @@ Done!
 # How To Find Your API Keys #
 #############################
 
-1. Sign in to your Stripe account.
-2. Toggle live or test mode [o] View test data
-3. Go to Developers from the menu and select API keys.
-
-#################################
-# How To Enable Stripe Checkout #
-#################################
-
-1. Sign in to your Stripe account.
-2. Toggle live or test mode [o] View test data
-3. Select Settings from the menu.
-4. Go to Checkout settings and enable using the toggle.
-5. Fill in the missing details.
+1. Sign in to your BTCPayServer account.
+2. Go to the Settings page 
+  i. for the store you want to use.
+  ii. for the user you want to use
+3. Generate an access token
