@@ -4,7 +4,7 @@
     public $id = __CLASS__;
     public $name = 'Stripe Checkout';
     public $description = '';
-    public $author = 'TiM International';
+    public $author = 'Jdawg';
     public $version = '1.0';
     public $website = 'https://www.stripe.com/';
     public $priority = 0;
