@@ -23,7 +23,9 @@ Done!
 #############################
 
 1. Sign in to your BTCPayServer account.
-2. Go to the Settings page 
+2. Go to the Settings page.
   i. for the store you want to use.
-  ii. for the user you want to use
-3. Generate an access token
+  ii. for the user you want to use.
+3. Generate an access token.
+4. Set your store ID, BTCPayServer URL and access token
+5. enable.

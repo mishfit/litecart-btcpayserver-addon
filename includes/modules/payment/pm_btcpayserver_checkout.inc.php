@@ -175,7 +175,7 @@
       return [
         [
           'key' => 'store_id',
-          'default_value' => 'HvcBKcXXmVu1P22AQaSUtrFptCMfAyXnADTGZLYdasRz',
+          'default_value' => 'HvcBcKXXmuV1P22VAQaStUrFptMCfAynXADTGZLYdasRz',
           'title' => language::translate(__CLASS__.':title_store_id', 'Store Id'),
           'description' => language::translate(__CLASS__.':description_store_id', 'BTCPayServer Store ID.'),
           'function' => 'text()',
@@ -196,7 +196,7 @@
         ],
         [
           'key' => 'btcpayserver_url',
-          'default_value' => '',
+          'default_value' => 'https://{example-btcpayserver-url}/api/v1',
           'title' => language::translate(__CLASS__.':title_btcpayserver_url', 'BTC Pay Server URL'),
           'description' => language::translate(__CLASS__.':description_btcpayserver_url', 'Your BTCPayServer instance URL.'),
           'function' => 'text()',
