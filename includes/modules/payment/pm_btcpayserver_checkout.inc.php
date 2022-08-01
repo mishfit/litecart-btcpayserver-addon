@@ -99,6 +99,23 @@
         if (empty($result['status'])) {
           throw new Exception('Payment status not succeeded');
         }
+
+        // if the transaction is already settled set Litecart to 'Processing'
+        if ($result[status] == 'Settled') {
+          return [
+            'order_status_id' => 'Processing',
+          ];
+        }
+
+        // if the transaction is expired set Litecart to 'Cancelled'
+        if ($result[status] == 'Expired') {
+          return [
+            'order_status_id' => 'Cancelled',
+          ];
+        }
+
+        // handles 'Pending', 'Processing'
+        // (there's a one-to-one relationship with these  statuses for BTCPayServer -> Litecart)
         return [
           'order_status_id' => $result['status'],
         ];
@@ -142,10 +159,11 @@
 
 
       $result = json_decode($response, true);
-      if (empty($request)) {
+      if (empty($result)) {
         throw new Exception('Invalid response from remote machine');
       }
 
+      // TODO: BTCPayServer does not throw errors in this way...have to check for errors in other ways
       if (!empty($result['error'])) {
         throw new Exception($result['error']['message']);
       }
