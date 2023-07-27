@@ -14,6 +14,24 @@
     // If not enabled
       if (empty($this->settings['status'])) return;
 
+      $forbidden_items = $this-> settings['forbidden_items'];
+      if (!empty($forbidden_items)) {
+        foreach ($items as $item) {
+
+          $product_id = $item['product_id'];
+
+          $result = array_search(strval($product_id), $forbidden_items);
+
+          if (!is_bool($result)) {
+            $log_message = '['. date('Y-m-d H:i:s e').'] product is **forbidden**: ' . json_encode($item['name']) . PHP_EOL . PHP_EOL;
+            file_put_contents(FS_DIR_STORAGE . 'logs/debug.log', $log_message, FILE_APPEND);
+            return;
+          } else {
+
+          }
+        }
+      }
+
       $options = [];
 
       $options[] = [
@@ -101,14 +119,14 @@
         }
 
         // if the transaction is already settled set Litecart to 'Processing'
-        if ($result[status] == 'Settled') {
+        if ($result['status'] == 'Settled') {
           return [
             'order_status_id' => 'Processing',
           ];
         }
 
         // if the transaction is expired set Litecart to 'Cancelled'
-        if ($result[status] == 'Expired') {
+        if ($result['status'] == 'Expired') {
           return [
             'order_status_id' => 'Cancelled',
           ];
@@ -175,7 +193,7 @@
       return [
         [
           'key' => 'store_id',
-          'default_value' => 'HvcBcKXXmuV1P22VAQaStUrFptMCfAynXADTGZLYdasRz',
+          'default_value' => '{your store id}',
           'title' => language::translate(__CLASS__.':title_store_id', 'Store Id'),
           'description' => language::translate(__CLASS__.':description_store_id', 'BTCPayServer Store ID.'),
           'function' => 'text()',
@@ -221,6 +239,14 @@
           'title' => language::translate(__CLASS__.':title_priority', 'Priority'),
           'description' => language::translate(__CLASS__.':description_priority', 'Process this module in the given priority order.'),
           'function' => 'int()',
+        ],
+        [
+          'key' => 'forbidden_items',
+          'default_value' => '',
+          'title' => language::translate(__CLASS__.':title_forbidden_Items', 'Forbidden Items'),
+          'description' => language::translate(__CLASS__.':description_forbidden_items', 'A comma separated list of items (by product ID#) for which this module should be disabled.'),
+          'function' => 'products()',
+          'multiple' => 'true',
         ],
       ];
     }
